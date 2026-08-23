@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@theme {
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: 'IBM Plex Sans', -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --color-bg: #F2F5F3;
+  --color-surface: #FFFFFF;
+  --color-surface-alt: #EAEEEB;
+  --color-ink: #182420;
+  --color-muted: #5C6862;
+  --color-line: #DCE2DE;
+  --color-accent: #2C4FE0;
+  --color-accent-soft: #E7EBFC;
+  --color-amber: #D98C22;
+  --color-amber-soft: #FBEDD8;
+  --color-done: #2C8F5C;
+  --color-done-soft: #E1F2E7;
+  --color-danger: #C0392B;
+  --color-danger-soft: #FBEAE7;
+  --color-gold: #C9A227;
+  --color-gold-soft: #F7EFD2;
+}
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: var(--font-mono); }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface border border-line rounded-xl p-4;
+  }
+  .btn-primary {
+    @apply inline-flex items-center gap-1.5 bg-accent text-white font-semibold text-sm px-4 py-2 rounded-lg hover:opacity-90 transition;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center gap-1.5 font-mono text-xs border border-line text-muted px-3 py-1.5 rounded-lg hover:border-accent hover:text-accent transition;
+  }
+  .btn-danger-ghost {
+    @apply inline-flex items-center gap-1.5 font-mono text-xs border border-line text-muted px-3 py-1.5 rounded-lg hover:border-danger hover:text-danger transition;
+  }
+  .input-field {
+    @apply text-sm px-3 py-2 border border-line rounded-lg bg-surface text-ink focus:outline-none focus:border-accent transition;
+  }
+  .textarea-note {
+    @apply w-full text-[13px] px-2.5 py-2 border border-line rounded-lg bg-bg resize-y min-h-[38px] text-ink placeholder:text-muted/60 focus:outline-none focus:border-accent transition;
+  }
+  .tag {
+    @apply font-mono text-[10.5px] px-1.5 py-0.5 rounded whitespace-nowrap;
+  }
+  .tag-easy { @apply bg-done-soft text-done; }
+  .tag-medium { @apply bg-amber-soft text-amber; }
+  .tag-topic { @apply bg-accent-soft text-accent; }
+}
+
+/* Small custom scrollbar so the sidebar doesn't look like default-browser chrome */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--color-line); border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
