@@ -25,7 +25,7 @@ export default function Login() {
           <Logo size={30} />
           <span className="font-mono font-bold text-base">PREP DASHBOARD</span>
         </div>
-        <p className="text-muted text-sm mb-6">Your placement command center. Enter your passcode to continue.</p>
+        <p className="text-muted text-sm mb-6">Enter your passcode to continue.</p>
 
         <input
           type="password"
@@ -42,11 +42,6 @@ export default function Login() {
           {submitting ? <Loader2 size={15} className="animate-spin" /> : null}
           {submitting ? 'Checking...' : 'Enter'}
         </button>
-
-        <p className="text-muted text-xs mt-5 leading-relaxed">
-          This is set in the backend's <code className="font-mono bg-surface-alt px-1 rounded">.env</code> file as{' '}
-          <code className="font-mono bg-surface-alt px-1 rounded">APP_PASSWORD</code>. Change it there any time.
-        </p>
       </form>
     </div>
   )
