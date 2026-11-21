@@ -2,9 +2,11 @@
 //   day: { _id, month, week, dayNumber, title, concept, tasks: [{type,text,url,tag}] }
 //   progress.days: { [dayId]: { taskChecks: [Bool], taskNotes: [String], pushChecked: Bool } }
 
+const asArray = (v) => (Array.isArray(v) ? v : Object.assign([], v || {}))
+
 export function dayProgress(day, progress) {
   const p = progress?.days?.[day._id] || {}
-  return { taskChecks: p.taskChecks || [], taskNotes: p.taskNotes || [], pushChecked: !!p.pushChecked }
+  return { taskChecks: asArray(p.taskChecks), taskNotes: asArray(p.taskNotes), pushChecked: !!p.pushChecked }
 }
 
 export function isDayComplete(day, progress, showPushTask) {
