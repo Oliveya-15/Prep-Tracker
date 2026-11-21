@@ -3,10 +3,10 @@ import { api } from '../utils/api.js'
 import { computeStreaks } from '../utils/trackerUtils.js'
 import { newlyEarnedBadges } from '../data/badges.js'
 
-function setArrayIndex(arr, index, value) {
-  const next = [...(arr || [])]
+function setArrayIndex(arr, index, value, fill = '') {
+  const next = Array.isArray(arr) ? [...arr] : Object.assign([], arr || {})
   next[index] = value
-  return next
+  return Array.from(next, (x) => x ?? fill)
 }
 
 export function useTracker(trackerType, { showPushTask, onBadgeUnlocked }) {
@@ -54,7 +54,7 @@ export function useTracker(trackerType, { showPushTask, onBadgeUnlocked }) {
       ...p,
       days: {
         ...p.days,
-        [dayId]: { ...p.days?.[dayId], taskChecks: setArrayIndex(p.days?.[dayId]?.taskChecks, taskIndex, checked) },
+        [dayId]: { ...p.days?.[dayId], taskChecks: setArrayIndex(p.days?.[dayId]?.taskChecks, taskIndex, checked, false) },
       },
     }))
     try {
