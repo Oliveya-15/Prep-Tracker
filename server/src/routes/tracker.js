@@ -19,6 +19,17 @@ async function getOrCreateProgress(trackerType) {
   return progress
 }
 
+// Build a real array (never an object) and fill any gaps
+function setAt(value, index, newValue, fill) {
+  let arr = []
+  if (Array.isArray(value)) arr = [...value]
+  else if (value && typeof value === 'object') {
+    Object.entries(value).forEach(([k, v]) => { arr[Number(k)] = v })
+  }
+  arr[Number(index)] = newValue
+  return Array.from(arr, (x) => x ?? fill)
+}
+
 // GET /api/tracker/:type -> { days: [...], progress: {...} }
 router.get('/:type', validType, async (req, res) => {
   const days = await TrackerDay.find({ trackerType: req.params.type }).sort({ month: 1, dayNumber: 1 })
@@ -77,10 +88,12 @@ router.delete('/:type/days/:dayId', validType, async (req, res) => {
 // PATCH /api/tracker/:type/progress/task -> toggle a task checkbox
 router.patch('/:type/progress/task', validType, async (req, res) => {
   const { dayId, taskIndex, checked } = req.body || {}
+  const current = await getOrCreateProgress(req.params.type)
+  const checks = setAt(current.days?.[dayId]?.taskChecks, taskIndex, !!checked, false)
   const progress = await TrackerProgress.findOneAndUpdate(
     { trackerType: req.params.type },
-    { $set: { [`days.${dayId}.taskChecks.${taskIndex}`]: !!checked } },
-    { new: true, upsert: true }
+    { $set: { [`days.${dayId}.taskChecks`]: checks } },
+    { new: true }
   )
   res.json(progress)
 })
@@ -88,10 +101,12 @@ router.patch('/:type/progress/task', validType, async (req, res) => {
 // PATCH /api/tracker/:type/progress/note -> save a per-question note
 router.patch('/:type/progress/note', validType, async (req, res) => {
   const { dayId, taskIndex, note } = req.body || {}
+  const current = await getOrCreateProgress(req.params.type)
+  const notes = setAt(current.days?.[dayId]?.taskNotes, taskIndex, note, '')
   const progress = await TrackerProgress.findOneAndUpdate(
     { trackerType: req.params.type },
-    { $set: { [`days.${dayId}.taskNotes.${taskIndex}`]: note } },
-    { new: true, upsert: true }
+    { $set: { [`days.${dayId}.taskNotes`]: notes } },
+    { new: true }
   )
   res.json(progress)
 })
