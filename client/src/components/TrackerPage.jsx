@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react'
-import { ChevronRight, Pencil, Trash2, Plus, ImagePlus, Loader2 } from 'lucide-react'
+import { ChevronRight, Pencil, Trash2, Plus, Loader2, X } from 'lucide-react'
 import { useTracker } from '../hooks/useTracker.js'
 import { dayProgress, isDayComplete, dayTaskCounts, computeCurrentDay, computeOverallProgress, computeStreaks } from '../utils/trackerUtils.js'
 import DayEditor from './DayEditor.jsx'
 import RewardModal from './RewardModal.jsx'
+import RichNote from './notes/RichNote.jsx'
+import { getTaskBlocks, getWeekBlocks } from '../utils/blocks.js'
 
 function tagClass(tag) {
   const t = (tag || '').toLowerCase()
@@ -12,60 +14,22 @@ function tagClass(tag) {
   return 'tag tag-easy'
 }
 
-function WeekNotes({ week, value, onLocalChange, onCommit }) {
-  const v = value || { text: '', image: null }
-
-  function handleImage(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (file.size > 900_000) {
-      alert('That image is a bit large — try one under ~900KB (a screenshot works better than a full-res photo).')
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = () => {
-      const next = { ...v, image: reader.result }
-      onLocalChange(next)
-      onCommit(next)
-    }
-    reader.readAsDataURL(file)
-  }
-
+function WeekNotes({ week, blocks, onChange }) {
   return (
     <div className="border border-dashed border-line rounded-xl p-4 my-3 bg-surface">
-      <h3 className="font-mono text-[11px] uppercase tracking-wide text-muted mb-2">Week {week} — notes & diagrams</h3>
-      <textarea
-        className="textarea-note min-h-[80px]"
-        placeholder="Formulas, diagrams described in words, a summary of the week — whatever's useful..."
-        value={v.text}
-        onChange={(e) => onLocalChange({ ...v, text: e.target.value })}
-        onBlur={() => onCommit(v)}
+      <h3 className="font-mono text-[11px] uppercase tracking-wide text-muted mb-2">Week {week} — notes, images & drawings</h3>
+      <RichNote
+        blocks={blocks}
+        onChange={onChange}
+        placeholder="Formulas, a summary of the week, diagrams — whatever's useful. Add images or draw below."
       />
-      <div className="flex items-center gap-3 mt-2 flex-wrap">
-        <label className="btn-ghost cursor-pointer">
-          <ImagePlus size={13} /> {v.image ? 'Replace image' : 'Attach a diagram / photo'}
-          <input type="file" accept="image/*" className="hidden" onChange={handleImage} />
-        </label>
-        {v.image && (
-          <>
-            <img src={v.image} alt={`Week ${week} attachment`} className="max-w-[140px] max-h-[100px] rounded-lg border border-line object-cover" />
-            <button
-              type="button"
-              className="btn-danger-ghost"
-              onClick={() => { const next = { ...v, image: null }; onLocalChange(next); onCommit(next) }}
-            >
-              Remove
-            </button>
-          </>
-        )}
-      </div>
     </div>
   )
 }
 
 export default function TrackerPage({ trackerType, title, subtitle, showPushTask, pushLabel, graphLabel, methodBox, referenceSections }) {
   const [rewardBadge, setRewardBadge] = useState(null)
-  const { days, progress, loading, error, toggleTask, setNoteLocal, commitNote, togglePush, setWeekNoteLocal, commitWeekNote, addDay, updateDay, deleteDay } =
+  const { days, progress, loading, error, toggleTask, togglePush, commitTaskBlocks, commitWeekBlocks, pendingSaves, saveError, clearSaveError, addDay, updateDay, deleteDay } =
     useTracker(trackerType, { showPushTask, onBadgeUnlocked: setRewardBadge })
 
   const [selectedMonth, setSelectedMonth] = useState(1)
@@ -255,14 +219,13 @@ export default function TrackerPage({ trackerType, title, subtitle, showPushTask
                                   {t.tag && <span className={`${tagClass(t.tag)} ml-1.5`}>{t.tag}</span>}
                                 </label>
                               </div>
-                              <textarea
-                                className="textarea-note ml-6 mt-1.5"
-                                style={{ width: 'calc(100% - 1.5rem)' }}
-                                placeholder="Your notes on this..."
-                                value={p.taskNotes[i] || ''}
-                                onChange={(e) => setNoteLocal(d._id, i, e.target.value)}
-                                onBlur={(e) => commitNote(d._id, i, e.target.value)}
-                              />
+                              <div className="ml-6 mt-1.5">
+                                <RichNote
+                                  key={`${d._id}-${i}`}
+                                  blocks={getTaskBlocks(progress, d._id, i)}
+                                  onChange={(blocks) => commitTaskBlocks(d._id, i, blocks)}
+                                />
+                              </div>
                             </div>
                           )
                         })}
@@ -303,11 +266,10 @@ export default function TrackerPage({ trackerType, title, subtitle, showPushTask
           )}
 
           <WeekNotes
-            month={selectedMonth}
+            key={`${selectedMonth}:${week}`}
             week={week}
-            value={progress?.weekNotes?.[`${selectedMonth}:${week}`]}
-            onLocalChange={(val) => setWeekNoteLocal(selectedMonth, week, val)}
-            onCommit={(val) => commitWeekNote(selectedMonth, week, val)}
+            blocks={getWeekBlocks(progress, selectedMonth, week)}
+            onChange={(blocks) => commitWeekBlocks(selectedMonth, week, blocks)}
           />
         </div>
       ))}
@@ -322,6 +284,17 @@ export default function TrackerPage({ trackerType, title, subtitle, showPushTask
           ))}
         </div>
       )}
+
+      {saveError ? (
+        <div className="fixed bottom-4 right-4 z-40 max-w-xs flex items-start gap-2 bg-danger-soft border border-danger/40 text-danger text-xs rounded-lg px-3 py-2 shadow-lg">
+          <span className="flex-1">Couldn't save your notes: {saveError} — they're still on screen and will retry.</span>
+          <button type="button" onClick={clearSaveError} aria-label="Dismiss"><X size={14} /></button>
+        </div>
+      ) : pendingSaves > 0 ? (
+        <div className="fixed bottom-4 right-4 z-40 flex items-center gap-1.5 bg-surface border border-line text-muted font-mono text-[11px] rounded-lg px-2.5 py-1.5 shadow">
+          <Loader2 size={12} className="animate-spin" /> Saving...
+        </div>
+      ) : null}
 
       <RewardModal badge={rewardBadge} onClose={() => setRewardBadge(null)} />
     </div>

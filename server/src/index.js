@@ -11,6 +11,7 @@ import authRoutes from './routes/auth.js'
 import trackerRoutes from './routes/tracker.js'
 import todoRoutes from './routes/todos.js'
 import pageRoutes from './routes/pages.js'
+import assetRoutes from './routes/assets.js'
 
 const requiredEnv = ['MONGO_URI', 'JWT_SECRET', 'APP_PASSWORD']
 const missing = requiredEnv.filter((k) => !process.env[k])
@@ -22,7 +23,7 @@ if (missing.length) {
 
 const app = express()
 app.use(cors())
-app.use(express.json({ limit: '2mb' })) // higher limit so small week-note image attachments fit
+app.use(express.json({ limit: '5mb' })) // room for note images / drawings (the client compresses them first)
 
 app.get('/api/health', (req, res) => res.json({ ok: true }))
 
@@ -30,6 +31,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/tracker', requireAuth, trackerRoutes)
 app.use('/api/todos', requireAuth, todoRoutes)
 app.use('/api/pages', requireAuth, pageRoutes)
+app.use('/api/assets', requireAuth, assetRoutes)
 
 // Fallback error handler so a thrown/rejected error returns JSON, not an HTML stack trace
 app.use((err, req, res, next) => {

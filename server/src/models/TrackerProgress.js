@@ -5,9 +5,11 @@ import mongoose from 'mongoose'
 const trackerProgressSchema = new mongoose.Schema(
   {
     trackerType: { type: String, enum: ['dsa', 'aptitude'], required: true, unique: true },
-    // days: { [dayId]: { taskChecks: [Bool], taskNotes: [String], pushChecked: Bool } }
+    // days: { [dayId]: { taskChecks: [Bool], taskNotes: [String] (old plain-text notes),
+    //                    taskBlocks: { [taskIndex]: [block] }, pushChecked: Bool } }
+    // block = { id, type: 'text', text } | { id, type: 'image' | 'drawing', assetId, width }  (pictures live in the `assets` collection)
     days: { type: mongoose.Schema.Types.Mixed, default: {} },
-    // weekNotes: { "month:week": { text: String, image: String|null } }
+    // weekNotes: { "month:week": { blocks: [block] } }   (older entries may still hold { text, image } — read as a fallback)
     weekNotes: { type: mongoose.Schema.Types.Mixed, default: {} },
     badges: { type: [String], default: [] },
   },

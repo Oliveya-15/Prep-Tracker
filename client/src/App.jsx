@@ -24,7 +24,7 @@ function Shell() {
 
   return (
     <PagesProvider>
-      <div className="flex min-h-screen">
+      <div className="flex flex-col md:flex-row min-h-screen">
         <div className="md:hidden flex items-center gap-3 px-4 py-3.5 bg-surface border-b border-line sticky top-0 z-20">
           <button onClick={() => setNavOpen(true)} aria-label="Open menu"><Menu size={19} /></button>
           <Logo size={22} />

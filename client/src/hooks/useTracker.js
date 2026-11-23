@@ -3,10 +3,23 @@ import { api } from '../utils/api.js'
 import { computeStreaks } from '../utils/trackerUtils.js'
 import { newlyEarnedBadges } from '../data/badges.js'
 
+// MongoDB can return { "0": ... } (an object) instead of an array — never spread it directly.
 function setArrayIndex(arr, index, value, fill = '') {
   const next = Array.isArray(arr) ? [...arr] : Object.assign([], arr || {})
   next[index] = value
   return Array.from(next, (x) => x ?? fill)
+}
+
+// When the server answers a checkbox request it sends back the whole progress document.
+// Notes are saved a moment after you type, so that answer can be slightly behind what's on screen:
+// keep the local notes (they're the newest) and take everything else from the server.
+function keepLocalNotes(updated, local) {
+  if (!local) return updated
+  const days = { ...updated.days }
+  for (const [id, d] of Object.entries(local.days || {})) {
+    if (d?.taskBlocks) days[id] = { ...days[id], taskBlocks: d.taskBlocks }
+  }
+  return { ...updated, days, weekNotes: local.weekNotes ?? updated.weekNotes }
 }
 
 export function useTracker(trackerType, { showPushTask, onBadgeUnlocked }) {
@@ -15,6 +28,9 @@ export function useTracker(trackerType, { showPushTask, onBadgeUnlocked }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const badgeCheckInFlight = useRef(false)
+  // Saving notes must never blank the page, so note-save problems live in their own state
+  const [pendingSaves, setPendingSaves] = useState(0)
+  const [saveError, setSaveError] = useState('')
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -59,44 +75,56 @@ export function useTracker(trackerType, { showPushTask, onBadgeUnlocked }) {
     }))
     try {
       const updated = await api.patch(`/tracker/${trackerType}/progress/task`, { dayId, taskIndex, checked })
-      setProgress(updated)
+      setProgress((p) => keepLocalNotes(updated, p))
     } catch (err) { setError(err.message) }
   }
 
-  function setNoteLocal(dayId, taskIndex, note) {
+  // Run a save request while tracking "Saving..." / error state. Resolves true/false, never throws.
+  async function trackSave(request) {
+    setPendingSaves((n) => n + 1)
+    try {
+      await request()
+      setSaveError('')
+      return true
+    } catch (err) {
+      setSaveError(err?.message || "Couldn't save your notes.")
+      return false
+    } finally {
+      setPendingSaves((n) => n - 1)
+    }
+  }
+
+  // Rich notes (text + images + drawings) for one question of one day.
+  // Updates the local copy straight away, then saves in the background.
+  function commitTaskBlocks(dayId, taskIndex, blocks) {
     setProgress((p) => ({
       ...p,
       days: {
-        ...p.days,
-        [dayId]: { ...p.days?.[dayId], taskNotes: setArrayIndex(p.days?.[dayId]?.taskNotes, taskIndex, note) },
+        ...p?.days,
+        [dayId]: {
+          ...p?.days?.[dayId],
+          taskBlocks: { ...p?.days?.[dayId]?.taskBlocks, [taskIndex]: blocks },
+        },
       },
     }))
+    return trackSave(() => api.patch(`/tracker/${trackerType}/progress/blocks`, { dayId, taskIndex, blocks }))
   }
 
-  async function commitNote(dayId, taskIndex, note) {
-    try {
-      const updated = await api.patch(`/tracker/${trackerType}/progress/note`, { dayId, taskIndex, note })
-      setProgress(updated)
-    } catch (err) { setError(err.message) }
+  // Rich notes for a whole week
+  function commitWeekBlocks(month, week, blocks) {
+    const key = `${month}:${week}`
+    setProgress((p) => ({
+      ...p,
+      weekNotes: { ...p?.weekNotes, [key]: { ...p?.weekNotes?.[key], blocks } },
+    }))
+    return trackSave(() => api.patch(`/tracker/${trackerType}/progress/weeknote`, { month, week, blocks }))
   }
 
   async function togglePush(dayId, checked) {
     setProgress((p) => ({ ...p, days: { ...p.days, [dayId]: { ...p.days?.[dayId], pushChecked: checked } } }))
     try {
       const updated = await api.patch(`/tracker/${trackerType}/progress/push`, { dayId, checked })
-      setProgress(updated)
-    } catch (err) { setError(err.message) }
-  }
-
-  function setWeekNoteLocal(month, week, val) {
-    const key = `${month}:${week}`
-    setProgress((p) => ({ ...p, weekNotes: { ...p.weekNotes, [key]: val } }))
-  }
-
-  async function commitWeekNote(month, week, val) {
-    try {
-      const updated = await api.patch(`/tracker/${trackerType}/progress/weeknote`, { month, week, ...val })
-      setProgress(updated)
+      setProgress((p) => keepLocalNotes(updated, p))
     } catch (err) { setError(err.message) }
   }
 
@@ -115,8 +143,9 @@ export function useTracker(trackerType, { showPushTask, onBadgeUnlocked }) {
 
   return {
     days, progress, loading, error, reload,
-    toggleTask, setNoteLocal, commitNote, togglePush,
-    setWeekNoteLocal, commitWeekNote,
+    toggleTask, togglePush,
+    commitTaskBlocks, commitWeekBlocks,
+    pendingSaves, saveError, clearSaveError: () => setSaveError(''),
     addDay, updateDay, deleteDay,
   }
 }

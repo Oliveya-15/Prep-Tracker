@@ -1,8 +1,10 @@
 // Works with data as it comes back from the API:
 //   day: { _id, month, week, dayNumber, title, concept, tasks: [{type,text,url,tag}] }
-//   progress.days: { [dayId]: { taskChecks: [Bool], taskNotes: [String], pushChecked: Bool } }
+//   progress.days: { [dayId]: { taskChecks: [Bool], taskNotes: [String] (old), taskBlocks: { [taskIndex]: [blocks] }, pushChecked: Bool } }
 
-const asArray = (v) => (Array.isArray(v) ? v : Object.assign([], v || {}))
+// MongoDB can hand back an object like { "0": true } where we expect an array.
+// This turns either shape into a real array so spreading / indexing never crashes.
+export const asArray = (v) => (Array.isArray(v) ? v : Object.assign([], v || {}))
 
 export function dayProgress(day, progress) {
   const p = progress?.days?.[day._id] || {}
