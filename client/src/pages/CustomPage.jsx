@@ -2,11 +2,14 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Plus, Trash2, ExternalLink, Loader2, MoreVertical } from 'lucide-react'
 import { usePagesContext } from '../context/PagesContext.jsx'
+import RichNote from '../components/notes/RichNote.jsx'
+import SaveStatus from '../components/notes/SaveStatus.jsx'
+import { getEntryBlocks } from '../utils/blocks.js'
 
 export default function CustomPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { pages, loading, renamePage, deletePage, addEntry, updateEntry, removeEntry } = usePagesContext()
+  const { pages, loading, renamePage, deletePage, addEntry, updateEntry, removeEntry, saveEntryBlocks, pendingSaves, saveError, clearSaveError } = usePagesContext()
   const [form, setForm] = useState({ title: '', link: '' })
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -24,6 +27,13 @@ export default function CustomPage() {
     if (!form.title.trim()) return
     addEntry(page._id, { title: form.title.trim(), link: form.link.trim(), notes: '' })
     setForm({ title: '', link: '' })
+  }
+
+  // Deleting an entry also deletes its pictures for good, so ask first when it has any
+  function handleRemoveEntry(entry) {
+    const pictures = (entry.blocks || []).filter((b) => b.type !== 'text').length
+    if (pictures && !confirm(`Delete "${entry.title}" and its ${pictures} image${pictures > 1 ? 's / drawings' : ' / drawing'}? This can't be undone.`)) return
+    removeEntry(page._id, entry._id)
   }
 
   async function handleDeletePage() {
@@ -93,18 +103,22 @@ export default function CustomPage() {
                 <ExternalLink size={12} />
               </a>
             )}
-            <button className="text-muted hover:text-danger p-1 shrink-0" onClick={() => removeEntry(page._id, entry._id)} aria-label="Delete entry">
+            <button className="text-muted hover:text-danger p-1 shrink-0" onClick={() => handleRemoveEntry(entry)} aria-label="Delete entry">
               <Trash2 size={15} />
             </button>
           </div>
-          <textarea
-            className="textarea-note mt-2.5"
-            placeholder="Notes..."
-            defaultValue={entry.notes}
-            onBlur={(e) => updateEntry(page._id, entry._id, { notes: e.target.value })}
-          />
+          <div className="mt-2.5">
+            <RichNote
+              key={entry._id}
+              blocks={getEntryBlocks(entry)}
+              placeholder="Notes..."
+              onChange={(blocks) => saveEntryBlocks(page._id, entry._id, blocks)}
+            />
+          </div>
         </div>
       ))}
+
+      <SaveStatus pending={pendingSaves} error={saveError} onDismiss={clearSaveError} />
     </div>
   )
 }

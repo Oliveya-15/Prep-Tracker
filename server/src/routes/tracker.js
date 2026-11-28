@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import TrackerDay from '../models/TrackerDay.js'
 import TrackerProgress from '../models/TrackerProgress.js'
+import { ID_RE, cleanBlocks } from '../utils/blocks.js'
 
 const router = Router()
 
@@ -34,32 +35,6 @@ function setAt(value, index, newValue, fill) {
   return Array.from(arr, (x) => x ?? fill)
 }
 
-const ID_RE = /^[a-f0-9]{24}$/i
-const MAX_BLOCKS = 300
-const MAX_TEXT = 50000
-
-// Validate + clean the rich-note blocks sent by the client.
-// A note is an ordered list of: { id, type: 'text', text } | { id, type: 'image'|'drawing', assetId, width }
-// Returns null when the payload is malformed (so nothing odd ever reaches MongoDB).
-function cleanBlocks(input) {
-  if (!Array.isArray(input) || input.length > MAX_BLOCKS) return null
-  const out = []
-  for (const b of input) {
-    if (!b || typeof b !== 'object') return null
-    const id = typeof b.id === 'string' ? b.id.slice(0, 40) : ''
-    if (b.type === 'text') {
-      if (typeof b.text !== 'string' || b.text.length > MAX_TEXT) return null
-      out.push({ id, type: 'text', text: b.text })
-    } else if (b.type === 'image' || b.type === 'drawing') {
-      if (typeof b.assetId !== 'string' || !ID_RE.test(b.assetId)) return null
-      const width = Math.min(100, Math.max(10, Math.round(Number(b.width)) || 60))
-      out.push({ id, type: b.type, assetId: b.assetId, width })
-    } else {
-      return null
-    }
-  }
-  return out
-}
 
 // GET /api/tracker/:type -> { days: [...], progress: {...} }
 router.get('/:type', validType, async (req, res) => {

@@ -41,6 +41,12 @@ export function getWeekBlocks(progress, month, week) {
   return legacyWeekBlocks(entry)
 }
 
+// Custom page entry: new rich blocks if it has them, otherwise the old plain-text `notes`
+export function getEntryBlocks(entry) {
+  if (Array.isArray(entry?.blocks)) return entry.blocks
+  return legacyTaskBlocks(entry?.notes)
+}
+
 // ---- preparing for the editor / for saving ------------------------------------
 // The editor always shows at least one block so there's somewhere to type.
 export function initBlocks(blocks) {
